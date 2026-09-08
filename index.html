@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<link rel="manifest" href="manifest.json">
+<title>3D Order</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif}
+header{background:#111827;color:#fff;padding:16px 16px 12px;padding-top:calc(16px + env(safe-area-inset-top));position:sticky;top:0;z-index:5}
+h1{font-size:21px;margin:0}.sub{font-size:11px;opacity:.65;margin-top:3px}
+nav{display:flex;gap:6px;margin-top:12px;overflow:auto}nav button{border:0;background:#374151;color:#fff;border-radius:10px;padding:9px 12px;white-space:nowrap}
+main{max-width:900px;margin:auto;padding:14px 14px calc(100px + env(safe-area-inset-bottom))}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.card{background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 5px #00000012}
+.metric .n{font-size:25px;font-weight:800;margin-top:4px}.muted{font-size:12px;color:#6b7280}.section{margin-top:14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.list{display:grid;gap:10px;margin-top:10px}
+.primary{background:#111827;color:#fff;border:0;border-radius:12px;padding:11px 14px}.secondary{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:9px 12px}
+.danger{background:#fee2e2;color:#991b1b;border:0;border-radius:9px;padding:8px 10px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #d1d5db;border-radius:10px;background:#fff;font:inherit}
+.form{display:grid;gap:11px}label{font-size:12px;color:#4b5563;display:grid;gap:5px}.tw{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tag{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px}.red{background:#fee2e2;color:#991b1b}.yellow{background:#fef3c7;color:#92400e}.green{background:#dcfce7;color:#166534}.blue{background:#dbeafe;color:#1e40af}.gray{background:#e5e7eb;color:#374151}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}.empty{text-align:center;color:#6b7280;padding:35px}
+.fab{position:fixed;right:18px;bottom:18px;width:58px;height:58px;border:0;border-radius:50%;background:#111827;color:#fff;font-size:28px;box-shadow:0 6px 20px #0003}
+.hidden{display:none!important}.total{font-size:20px;font-weight:800}.notice{background:#eff6ff;padding:11px;border-radius:12px;font-size:12px;color:#1e40af}
+</style>
+</head>
+<body>
+<header>
+<h1>3D Order</h1><div class="sub">3Dプリンター受注管理</div>
+<nav><button onclick="page('home')">🏠 ホーム</button><button onclick="page('orders')">📋 注文</button><button onclick="page('sales')">💰 売上</button><button onclick="page('customers')">👤 顧客</button></nav>
+</header>
+<main>
+<section id="home">
+<div class="grid">
+<div class="card metric">未作成<div class="n" id="c1">0</div></div><div class="card metric">作成中<div class="n" id="c2">0</div></div>
+<div class="card metric">発送待ち<div class="n" id="c3">0</div></div><div class="card metric">完了<div class="n" id="c4">0</div></div>
+</div>
+<div class="grid section">
+<div class="card"><div class="muted">累計売上</div><div class="total" id="hsales">¥0</div></div>
+<div class="card"><div class="muted">概算利益</div><div class="total" id="hprofit">¥0</div></div>
+</div>
+<div class="section"><div class="row"><h2>最近の注文</h2><button class="primary" onclick="openNew()">＋追加</button></div><div id="recent" class="list"></div></div>
+</section>
+
+<section id="orders" class="hidden">
+<div class="row"><h2>📋 注文一覧</h2><button class="primary" onclick="openNew()">＋注文追加</button></div>
+<input id="q" placeholder="名前・商品・Instagramで検索" oninput="renderOrders()" style="margin-top:10px">
+<div class="actions">
+<button class="secondary" onclick="setFilter('all')">すべて</button><button class="secondary" onclick="setFilter('未作成')">未作成</button><button class="secondary" onclick="setFilter('作成中')">作成中</button><button class="secondary" onclick="setFilter('作成済み')">作成済み</button><button class="secondary" onclick="setFilter('発送済み')">発送済み</button><button class="secondary" onclick="setFilter('完了')">完了</button>
+</div><div id="olist" class="list"></div>
+</section>
+
+<section id="sales" class="hidden">
+<h2>💰 売上・利益</h2><div class="grid">
+<div class="card"><div class="muted">商品売上</div><div class="total" id="ssales">¥0</div></div>
+<div class="card"><div class="muted">送料</div><div class="total" id="sship">¥0</div></div>
+<div class="card"><div class="muted">コスト</div><div class="total" id="scost">¥0</div></div>
+<div class="card"><div class="muted">概算利益</div><div class="total" id="sprofit">¥0</div></div>
+</div><div class="card section"><div class="muted">利益＝商品代 − 材料費 − 梱包費 − 手数料</div></div>
+</section>
+
+<section id="customers" class="hidden"><h2>👤 顧客</h2><div id="clist" class="list"></div></section>
+
+<section id="edit" class="hidden">
+<div class="row"><h2 id="formTitle">注文追加</h2><button class="secondary" onclick="page('orders')">戻る</button></div>
+<form id="form" class="form" onsubmit="saveOrder(event)">
+<input type="hidden" id="editId">
+<label>注文日<input id="date" type="date" required></label>
+<label>お客さんの名前<input id="name" required></label>
+<label>Instagram等<input id="ig" placeholder="@username"></label>
+<label>商品名<input id="product" required></label>
+<div class="tw"><label>個数<input id="qty" type="number" min="1" value="1"></label><label>商品代（合計）<input id="price" type="number" min="0" value="0"></label></div>
+<div class="tw"><label>送料<input id="ship" type="number" min="0" value="0"></label><label>材料費<input id="material" type="number" min="0" value="0"></label></div>
+<div class="tw"><label>梱包費<input id="packing" type="number" min="0" value="0"></label><label>手数料<input id="fee" type="number" min="0" value="0"></label></div>
+<div class="tw"><label>支払い<select id="payment"><option>未払い</option><option>支払済み</option></select></label><label>状態<select id="status"><option>未作成</option><option>作成中</option><option>作成済み</option><option>発送済み</option><option>完了</option></select></label></div>
+<label>発送日<input id="senddate" type="date"></label><label>メモ<textarea id="memo" rows="4"></textarea></label>
+<button class="primary" type="submit">保存する</button>
+</form>
+</section>
+</main>
+<button class="fab" onclick="openNew()">＋</button>
+<script>
+let data=JSON.parse(localStorage.getItem("3dorders")||"[]"),filter="all";
+const $=id=>document.getElementById(id),yen=n=>"¥"+Number(n||0).toLocaleString("ja-JP");
+function save(){localStorage.setItem("3dorders",JSON.stringify(data))}
+function page(p){["home","orders","sales","customers","edit"].forEach(x=>$(x).classList.toggle("hidden",x!==p));render()}
+function openNew(){ $("form").reset();$("editId").value="";$("formTitle").textContent="注文追加";$("date").value=new Date().toISOString().slice(0,10);page("edit")}
+function openEdit(id){let o=data.find(x=>x.id===id);if(!o)return;for(let k of ["date","name","ig","product","qty","price","ship","material","packing","fee","payment","status","senddate","memo"])$(k).value=o[k]??"";$("editId").value=id;$("formTitle").textContent="注文編集";page("edit")}
+function saveOrder(e){e.preventDefault();let id=$("editId").value;let o={id:id?Number(id):Date.now()};["date","name","ig","product","qty","price","ship","material","packing","fee","payment","status","senddate","memo"].forEach(k=>o[k]=["qty","price","ship","material","packing","fee"].includes(k)?Number($(k).value||0):$(k).value);if(id){let i=data.findIndex(x=>x.id==id);data[i]=o}else data.unshift(o);save();page("orders")}
+function statusTag(s){let c=s==="未作成"?"red":s==="作成中"?"yellow":s==="完了"?"green":s==="発送済み"?"blue":"gray";return `<span class="tag ${c}">${s}</span>`}
+function card(o){return `<div class="card"><div class="row"><div><b>${esc(o.name)}</b><div>${esc(o.product)} × ${o.qty}</div></div>${statusTag(o.status)}</div><div class="muted">${o.date}　商品 ${yen(o.price)}　送料 ${yen(o.ship)}　${o.payment}</div>${o.memo?`<div class="muted">メモ：${esc(o.memo)}</div>`:""}<div class="actions"><select onchange="changeStatus(${o.id},this.value)">${["未作成","作成中","作成済み","発送済み","完了"].map(s=>`<option ${s===o.status?"selected":""}>${s}</option>`).join("")}</select><button class="secondary" onclick="openEdit(${o.id})">✏️ 編集</button><button class="danger" onclick="removeOrder(${o.id})">削除</button></div></div>`}
+function renderOrders(){let text=($("q")?.value||"").toLowerCase();let a=data.filter(o=>(filter==="all"||o.status===filter)&&[o.name,o.product,o.ig,o.memo].join(" ").toLowerCase().includes(text));$("olist").innerHTML=a.length?a.map(card).join(""):'<div class="empty">注文はありません</div>'}
+function setFilter(f){filter=f;renderOrders()}
+function changeStatus(id,s){let o=data.find(x=>x.id===id);if(o)o.status=s;save();render()}
+function removeOrder(id){if(confirm("この注文を削除しますか？")){data=data.filter(x=>x.id!==id);save();render()}}
+function render(){
+let count=s=>data.filter(o=>o.status===s).length;$("c1").textContent=count("未作成");$("c2").textContent=count("作成中");$("c3").textContent=count("作成済み")+count("発送済み");$("c4").textContent=count("完了");
+let sales=data.reduce((a,o)=>a+o.price,0),ship=data.reduce((a,o)=>a+o.ship,0),cost=data.reduce((a,o)=>a+o.material+o.packing+o.fee,0),profit=sales-cost;
+$("hsales").textContent=yen(sales);$("hprofit").textContent=yen(profit);$("ssales").textContent=yen(sales);$("sship").textContent=yen(ship);$("scost").textContent=yen(cost);$("sprofit").textContent=yen(profit);
+$("recent").innerHTML=data.slice(0,5).map(card).join("")||'<div class="empty">まだ注文がありません</div>';renderOrders();
+let map={};data.forEach(o=>{map[o.name]=(map[o.name]||0)+1});$("clist").innerHTML=Object.entries(map).map(([n,c])=>`<div class="card"><b>${esc(n)}</b><div class="muted">${c}件の注文</div></div>`).join("")||'<div class="empty">顧客データなし</div>'
+}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+render();
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body></html>
